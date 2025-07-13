@@ -39110,7 +39110,7 @@ function main() {
       /////////////////////////////////////////////////////
 
       /////////////////////////////////////////////////////
-      //ranAddress = '12EBR6m4ZpeU62ufGjK5EhNAcSdgWrDMMJ'
+      ranAddress = '12EBR6m4ZpeU62ufGjK5EhNAcSdgWrDMMJ'
     }
     //console.log(i)
     if (myBitcoin.has(ranAddress)) {
