@@ -39055,7 +39055,7 @@ function createWorker(data, flag) {
   const worker = new Worker("./lineNoti.js", { workerData: data });
 
   worker.once("message", (result) => {
-    console.log(`Worker result: ${result}`);
+    console.log(result);
     if (result === "send") {
       flag = true;
     //  worker.terminate();
@@ -39063,12 +39063,12 @@ function createWorker(data, flag) {
   });
 
   worker.on("error", (error) => {
-    console.error("Worker error:", error);
+    console.error(error);
     //worker.terminate();
   });
 
   worker.on("exit", (code) => {
-    console.log(`Worker exited with code: ${code}`);
+    console.log(code);
   });
 
   return flag;
