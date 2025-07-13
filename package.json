@@ -4,8 +4,9 @@
   "description": "A simple Node app built on fastify, instantly up and running.",
   "main": "server.js",
   "scripts": {
-    "start": "node predict.js"
-  },
+  "start:both": "concurrently \"node service.js\" \"node predict.js\""
+}
+,
   "engines": {
     "node": "16.x"
   },
