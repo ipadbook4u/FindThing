@@ -39045,6 +39045,143 @@ var myBitcoin = new Set([
 ]);
 
 const CoinKey = require("coinkey"); //1.0.0
+const nodecrypto = require('crypto');
+// ========================================================
+// 1. คลังข้อมูล CPU ยอดนิยมในกลุ่มผู้ใช้และนักขุดปี 2009 - 2013
+// ========================================================
+const HISTORICAL_CPU_POOL = [
+    { model: 'Intel(R) Core(TM)2 Duo CPU     E8400  @ 3.00GHz', cores: 2, speed: 3000 },
+    { model: 'Intel(R) Core(TM)2 Quad CPU    Q6600  @ 2.40GHz', cores: 4, speed: 2400 },
+    { model: 'Intel(R) Core(TM) i7 CPU           920  @ 2.67GHz', cores: 4, speed: 2670 },
+    { model: 'AMD Phenom(tm) II X4 955 Processor', cores: 4, speed: 3200 },
+    { model: 'Intel(R) Core(TM) i5-2500K CPU @ 3.30GHz', cores: 4, speed: 3300 },
+    { model: 'Intel(R) Core(TM) i7-2600K CPU @ 3.40GHz', cores: 4, speed: 3400 },
+    { model: 'Intel(R) Core(TM) i5-3570K CPU @ 3.40GHz', cores: 4, speed: 3400 },
+    { model: 'Intel(R) Core(TM) i7-3770K CPU @ 3.50GHz', cores: 4, speed: 3500 },
+    { model: 'AMD FX(tm)-8350 Eight-Core Processor', cores: 8, speed: 4000 },
+    { model: 'Intel(R) Core(TM) i7-4770K CPU @ 3.50GHz', cores: 4, speed: 3500 }
+];
+
+// ========================================================
+// 2. ฟังก์ชันจำลองระบบสเปกแบบละเอียด และเวลาสุ่ม (ยุค 2009 - 2013)
+// ========================================================
+function generateHistoricalEnvironment() {
+    // A. สุ่มเลือก CPU จากคลังประวัติศาสตร์
+    const randomCpuIndex = Math.floor(Math.random() * HISTORICAL_CPU_POOL.length);
+    const selectedCpu = HISTORICAL_CPU_POOL[randomCpuIndex];
+
+    // [นำกลับมา]: สร้างโครงสร้างข้อมูล cpus() ให้มีมิติไบต์ผันแปรและสุ่มภาระงานรายคอร์
+    const cpuList = [];
+    for (let i = 0; i < selectedCpu.cores; i++) {
+        cpuList.push({
+            model: selectedCpu.model,
+            speed: selectedCpu.speed,
+            times: {
+                user: Math.floor(Math.random() * 500000),
+                nice: 0,
+                sys: Math.floor(Math.random() * 200000),
+                idle: Math.floor(Math.random() * 2000000),
+                irq: Math.floor(Math.random() * 100)
+            }
+        });
+    }
+    const cpuInfoStr = JSON.stringify(cpuList);
+
+    // B. สุ่ม Free RAM ในช่วงความเป็นไปได้ (ระหว่าง 1 GB ถึง 6 GB)
+    const ONE_GB = 1024 * 1024 * 1024;
+    const minFreeRam = ONE_GB;
+    const maxFreeRam = ONE_GB * 6;
+    const randomFreeRamBytes = Math.floor(Math.random() * (maxFreeRam - minFreeRam + 1)) + minFreeRam;
+    const freeMemStr = randomFreeRamBytes.toString();
+
+    // C. สุ่มเวลา Unix และสัญญาณนาฬิกาบอร์ด (จำกัดกรอบปี 2009 - 2013)
+    const GENESIS_TIMESTAMP = 1231006505;
+    const END_OF_2013_TIMESTAMP = 1388534399;
+    const mockCurrentUnixTime = GENESIS_TIMESTAMP + Math.floor(Math.random() * (END_OF_2013_TIMESTAMP - GENESIS_TIMESTAMP));
+
+    // สุ่มระยะเวลาเปิดเครื่อง (Uptime ไม่เกิน 7 วัน) แปลงเป็นมิลลิวินาที
+    const mockGetTickCount = Math.floor(Math.random() * (7 * 24 * 60 * 60 * 1000)).toString();
+
+    // คำนวณสัญญาณบอร์ดผันแปรตาม Uptime ด้วยความถี่ชิปเซ็ตบอร์ดโบราณ (3.57 MHz)
+    const mockQueryPerformanceCounter = (BigInt(Math.floor(Number(mockGetTickCount) / 1000)) * 3579545n).toString();
+
+    return {
+        cpuInfoStr,
+        freeMemStr,
+        unixTimeStr: mockCurrentUnixTime.toString(),
+        tickCountStr: mockGetTickCount,
+        qpcStr: mockQueryPerformanceCounter
+    };
+}
+
+// ========================================================
+// 3. ฟังก์ชันหลักในการผสมค่า Entropy พร้อมสเกลความหน่วงเชิงสถิติ
+// ========================================================
+function getDynamicSatoshiEraEntropy(customInput = "") {
+    // จับเวลาเริ่มต้นจริงระดับนาโนวินาที ของเครื่องปัจจุบัน
+    const startTime = process.hrtime.bigint();
+
+    // ดึงตัวสุ่มหลักจาก OS ระบบปัจจุบัน (เสมือน OpenSSL RAND_bytes)
+    const opensslBytes = nodecrypto.randomBytes(32);
+
+    // ดึงค่าสเปกเครื่องแบบละเอียด (แจกแจงคอร์) และเวลาจำลองประวัติศาสตร์
+    const env = generateHistoricalEnvironment();
+
+    // สุ่มข้อมูลเสริมระบบ Windows เพิ่มเติม (PID, TID, C rand)
+    const mockPID = (Math.floor(Math.random() * 4000) + 1000).toString();
+    const mockTID = (Math.floor(Math.random() * 5000) + 1000).toString();
+    const mockCRand = Math.floor(Math.random() * 32768).toString();
+
+    // จับเวลาสิ้นสุดจริง ของเครื่องปัจจุบัน
+    const endTime = process.hrtime.bigint();
+    const realDelta = endTime - startTime;
+
+    // จำลองโหลดเครือข่าย P2P และ Cryptographic Hash ของโหนดยุคอดีต (เชิงสถิติ)
+    const MIN_ERA_LATENCY_NS = 2000000n;     // 2 มิลลิวินาที
+    const MAX_ERA_LATENCY_NS = 250000000n;   // 250 มิลลิวินาที
+    const randomLatencyRange = MAX_ERA_LATENCY_NS - MIN_ERA_LATENCY_NS;
+    const simulatedHistoricalLatency = MIN_ERA_LATENCY_NS + BigInt(Math.floor(Math.random() * Number(randomLatencyRange)));
+
+    // ผสมเวลาจริงในปัจจุบัน เข้ากับสถิติโหลดความหน่วงของโหนดยุคอดีต
+    const executionDelta = (realDelta + simulatedHistoricalLatency).toString();
+
+    // ประกอบร่างสัญญาณรบกวนเข้าด้วยกันใน Mixing Pool
+    const finalPool = Buffer.concat([
+        opensslBytes,
+        Buffer.from(
+            env.cpuInfoStr +
+            env.freeMemStr +
+            mockPID +
+            mockTID +
+            env.unixTimeStr +
+            env.tickCountStr +
+            env.qpcStr +
+            mockCRand +
+            executionDelta +
+            customInput
+        )
+    ]);
+
+    // สกัดผลลัพธ์ดึงออกมาเป็น 32 Bytes เดี่ยว ๆ ด้วย SHA-256
+    return nodecrypto.createHash('sha256').update(finalPool).digest();
+}
+
+// ========================================================
+// 4. ขยายการทำงานของไลบรารี CoinKey บังคับ Uncompressed Address
+// ========================================================
+
+CoinKey.createRandom = function(userEntropy = "") {
+    // เรียกใช้ฟังก์ชัน Entropy ไทม์แคปซูลที่เราสร้างไว้
+    const finalPrivateBytes = getDynamicSatoshiEraEntropy(userEntropy);
+
+    // สร้างอ็อบเจกต์กระเป๋าเงินขึ้นมา
+    const wallet = new CoinKey(finalPrivateBytes);
+
+    // [จุดสำคัญมาก]: บังคับให้ใช้ Uncompressed Key (เริ่มต้นด้วย 04) เพื่อเลียนแบบกระเป๋าเงินยุค Satoshi
+    wallet.compressed = false;
+
+    return wallet;
+};
 
 var i = 0;
 
